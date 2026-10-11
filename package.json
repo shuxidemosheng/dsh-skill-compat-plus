@@ -1,0 +1,76 @@
+{
+  "name": "dsh-skill-compat-plus",
+  "description": "Mount Claude Code / Codex / ZCode skill directories into DeepSeek Harness as read-only skill providers — frontmatter field mapping, name slug normalization, hot reload. 技能兼容层：把 ~/.claude/skills、~/.codex/skills、~/.zcode/skills 等外部技能目录挂进 dsh",
+  "keywords": [
+    "deepseek",
+    "deepseek-harness",
+    "dsh",
+    "plugin",
+    "skills",
+    "skill-provider",
+    "claude-code",
+    "codex",
+    "zcode",
+    "compat",
+    "agent"
+  ],
+  "homepage": "https://github.com/shuxidemosheng/dsh-skill-compat-plus#readme",
+  "bugs": {
+    "url": "https://github.com/shuxidemosheng/dsh-skill-compat-plus/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shuxidemosheng/dsh-skill-compat-plus.git"
+  },
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml"
+  ],
+  "engines": {
+    "node": ">=24",
+    "dsh": ">=0.2.0-rc.2"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && esbuild src/index.ts --bundle --format=esm --platform=node --target=node24 --outfile=lib/index.js --legal-comments=none --packages=external",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.4",
+    "@deepseek-ai/dsh-skill": ">=0.2.0-rc.2"
+  },
+  "dependencies": {
+    "chokidar": "^5.0.0",
+    "yaml": "^2.4.2"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.5-alpha.1",
+    "@deepseek-ai/dsh-skill": "0.2.1-alpha.2",
+    "@types/node": "^24.0.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4",
+    "yaml": "^2.4.2"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  }
+}

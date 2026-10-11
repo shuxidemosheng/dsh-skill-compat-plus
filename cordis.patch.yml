@@ -1,0 +1,16 @@
+- insert:
+    - id: skill-compat-plus
+      name: dsh-skill-compat-plus
+      config:
+        # 各外部技能来源：true/false 或 { enabled, project, root, rank } 精细控制。
+        # 三家默认全开；目录不存在时静默跳过。
+        sources:
+          claude: true   # ~/.claude/skills + <项目根>/.claude/skills
+          codex: true    # ~/.codex/skills（Codex 旧约定目录；新官方 ~/.agents/skills 由 dsh 原生扫描）
+          zcode: true    # ~/.zcode/skills + <项目根>/.zcode/skills
+        # 额外目录：{ path, label?, rank? }，rank 默认 300（与官方 custom 同档）
+        extraDirs: []
+        watch: true
+        watchUsePolling: false   # 网络盘/特殊文件系统上手动开启
+        slugifyNames: true       # 外来技能名不符合 dsh kebab-case 时自动转换
+        synthesizeDescription: true  # Claude 允许缺省 description；开启时从正文首段合成
