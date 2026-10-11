@@ -70,7 +70,7 @@ dsh 官方的技能发现只扫描 `.dsh/skills`、`.agents/skills`、`~/.dsh/sk
 | CLI（npm 包） | `dsh plugin --profile <你的profile> add dsh-skill-compat-plus` |
 | 桌面端 | 插件页安装 `dsh-skill-compat-plus`，或：`ELECTRON_RUN_AS_NODE=1 "/d/DeepSeek Harness/DeepSeek Harness.exe" --expose-internals "D:/DeepSeek Harness/resources/app.asar/dsh/node_modules/@deepseek-ai/dsh-desktop-host/lib/cli.js" plugin --profile desktop add dsh-skill-compat-plus`（Git Bash，先完全退出应用含托盘） |
 | git 直装（始终最新 main） | `dsh plugin --profile <你的profile> add git+https://github.com/shuxidemosheng/dsh-skill-compat-plus.git` |
-| 本地 tgz | `npm pack` 后 `dsh plugin --profile <你的profile> add file:D:/AIcoding/dsh-skill-compat-plus/dsh-skill-compat-plus-0.1.0.tgz` |
+| 本地 tgz | `npm pack` 后 `dsh plugin --profile <你的profile> add file:<你的打包路径>/dsh-skill-compat-plus-0.1.0.tgz` |
 
 ## 配置
 
