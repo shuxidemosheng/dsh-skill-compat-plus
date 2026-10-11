@@ -1,144 +1,167 @@
+<div align="center">
+
 # dsh-skill-compat-plus
 
-[![npm version](https://img.shields.io/npm/v/dsh-skill-compat-plus.svg)](https://www.npmjs.com/package/dsh-skill-compat-plus)
+**一条命令，让你 Claude Code / Codex / ZCode 里的技能在 dsh 原地复活。**
+
+零迁移 · 只读挂载 · 改完即生效 · 模型自动用、用户随手 `/`
+
+社区插件生态：[awesome-dsh-plugin](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin)
+
+[![npm version](https://img.shields.io/npm/v/dsh-skill-compat-plus)](https://www.npmjs.com/package/dsh-skill-compat-plus)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A524-brightgreen.svg)](package.json)
+[![dsh](https://img.shields.io/badge/dsh-%E2%89%A50.2.0--rc.2-4176E6.svg)](https://github.com/deepseek-ai/deepseek-harness)
+[![tests](https://img.shields.io/badge/tests-32%20passing-2EA44F.svg)](#本地开发)
+[![audit](https://img.shields.io/badge/Mimosa%20audit-clean-2EA44F.svg)](#安全)
 
-**把 Claude Code / Codex / ZCode 的技能目录挂进 DeepSeek Harness（dsh）。** 一个插件，让 dsh 直接看到你已有生态里的 agent skills——无需复制、无需迁移、改动即时生效。
+</div>
 
-## 它是什么
+你在 Claude Code 里攒了一堆 skills，Codex 和 ZCode 里又各有一套——切到 [DeepSeek Harness (dsh)](https://github.com/deepseek-ai/deepseek-harness)，一个都带不过去，只能逐个复制 `SKILL.md` 再手动同步。**本插件把这三家的技能目录作为只读技能来源直接挂进 dsh**：技能原地不动，模型按需自动加载，用户敲 `/名字` 随手调用，文件一改秒级生效。
 
-dsh 官方的技能发现只扫描 `.dsh/skills`、`.agents/skills`、`~/.dsh/skills` 等自有目录。而 Claude Code（`~/.claude/skills`）、Codex CLI（`~/.codex/skills`）、ZCode（`~/.zcode/skills`）各自维护着大量高质量技能。本插件以 **SkillProvider** 形式（`ctx.skills.registerProvider`）把这些目录作为只读来源挂进 dsh 的技能注册表：
+> [!TIP]
+> ## Quick Start
+>
+> CLI（推荐带版本号，规避 profile 安装端的 `minimumReleaseAge` 冷却）：
+>
+> ```bash
+> dsh plugin --profile <你的profile> add dsh-skill-compat-plus@0.1.0
+> ```
+>
+> 桌面端：**插件页搜索 `dsh-skill-compat-plus` 一键安装**，装完重启。装完什么都不用配——三家来源默认全开，目录不存在自动跳过。
 
-- **模型可用**：导入技能进入 `skill` 工具的目录（catalog），模型按需加载；
-- **用户可斜杠调用**：`user-invocable` 技能自动获得 dsh 原生的 `/name` 手势入口；
-- **热更新**：目录里新增/修改/删除技能文件，无需重启即可生效（chokidar + 存在性轮询）；
-- **零侵入**：只读挂载，不复制、不改写你的任何文件；卸载即恢复原状。
+## 效果一览（示意）
 
-## 功能
+```text
+用户敲 / ────────────────────────────────────────┐
+│ 4drawio          数学建模非数据型图示绘制阶段…      │
+│ nature-figure    Create, revise, audit, and …    │
+│ 1start-mathmodel 数学建模竞赛工作流入口。用于启动…   │
+│ …（本机实测：Claude 30 个 + Codex 20 个一次到位）    │
+└────────────────────────────────────────────────┘
+模型侧：同一批技能进入 skill 工具的 <available_skills> 目录，按需自动加载。
+```
 
-- 三家来源默认全开，目录不存在时静默跳过：
-  - `claude-code`：`~/.claude/skills`（用户级）+ `<项目根>/.claude/skills`（项目级，按最近 `.git` 祖先探测）
-  - `codex`：`~/.codex/skills`（旧约定目录；Codex 新官方 `~/.agents/skills` dsh 原生已扫，不重复挂载）
-  - `zcode`：`~/.zcode/skills`（用户级）+ `<项目根>/.zcode/skills`（项目级）
-- **frontmatter 字段映射**（详见下表）：`when_to_use` → `whenToUse`、宽松布尔、Codex `agents/openai.yaml` 的 `policy.allow_implicit_invocation` 等
-- **名称规范化**：外来名不符合 dsh kebab-case 时自动 slug 化（如 `_references` → `references`、`code_review` → `code-review`），可关闭
-- **description 合成**：Claude 允许缺省 description，而 dsh 必填——自动取正文首段合成（可关闭）
-- **优先级体系**：dsh 原生技能永远压过同名导入技能；项目级导入压过用户级导入
-- **诊断聚合**：无效文件、命名冲突等按问题集合变化输出 warn，不刷屏
-- YAML 用官方同款 `yaml` 包解析——块标量（`>-`、`|`）、嵌套 metadata 都能正确处理
+## 为什么是"挂"而不是"搬"
 
-## 字段映射表
+- **原地不动**。技能文件留在原目录，不复制、不改写、卸载即恢复原状——对齐 modlens 的"一个插件、零侵入"哲学。
+- **双侧可用**。`user-invocable` 技能自动获得 dsh 原生 `/名字` 手势入口（host 端 pre-step 解析，无需注册命令）；模型侧进入 catalog 按需加载。
+- **热更新**。chokidar 监听 + 存在性轮询双通道：目录里增删改技能、甚至整个目录后建，都不用重启。
+- **名称规范化**。`_references` → `references`、`code_review` → `code-review` 自动 slug 化；Claude 缺省的 description 从正文首段合成——dsh 的两条硬约束（kebab 名 + 非空描述）由插件兜底。
+- **优先级刻死**。dsh 原生技能永远坐 C 位，同名导入技能让位；项目级导入压过用户级导入。不会出现导入悄悄覆盖原生的情况。
+- **诊断不刷屏**。无效文件、命名冲突按"问题集合变化"输出 warn， catalog 重建再多次也只有变化时说一句。
 
-| 外来字段 | Claude Code | Codex | ZCode | 映射到 dsh |
-|---|---|---|---|---|
-| `name` | 可选（缺省取目录名） | 必填 | 可选（缺省取目录名） | 必填；缺省用目录名，不合规则 slug 化 |
-| `description` | 可选 | 必填 | 可选 | 必填；缺失时从正文首段合成（可关） |
-| `when_to_use` | 有 | 无 | 有 | `whenToUse`（snake → camel） |
-| `disable-model-invocation` | 有 | 无 | 无 | `invocation.modelInvocable` |
-| `user-invocable` | 有 | 无 | 无 | `invocation.userInvocable` |
-| `agents/openai.yaml` 的 `policy.allow_implicit_invocation: false` | 无 | 有 | 无 | `invocation.modelInvocable: false` |
-| `allowed-tools` / `disallowed-tools` | 有 | 有（空格分隔） | 无 | 保留在 `metadata`（dsh 无对应物） |
-| `model` / `effort` / `hooks` / `paths` / `shell` / `argument-hint` 等 | 有 | 无 | 无 | 保留在 `metadata` |
-| `license` / `compatibility` | 有 | 有 | 容忍 | 保留在 `metadata` |
-| `metadata`（map） | 有 | 有 | 有 | 原样保留 |
+## 支持的来源
 
-整个原始 frontmatter 会全量保真进 `metadata`，不做静默丢弃。
+| 来源 | 目录 | 默认 |
+|---|---|---|
+| `claude-code` | `~/.claude/skills` + `<项目根>/.claude/skills` | 开 |
+| `codex` | `~/.codex/skills`（旧约定；新官方 `~/.agents/skills` dsh 原生已扫） | 开 |
+| `zcode` | `~/.zcode/skills` + `<项目根>/.zcode/skills` | 开 |
+| `extraDirs` | 任意额外目录（`{ path, label?, rank? }`） | 空 |
 
-## 优先级（rank，越小越优先）
+目录不存在静默跳过；每家可单独开关、自定义路径与 rank。
 
-| 来源 | 目录 | rank | 语义 |
-|---|---|---|---|
-| dsh 原生 project-dsh | `<项目根>/.dsh/skills` | 100 | 永远压过导入 |
-| dsh 原生 project-agents | `<项目根>/.agents/skills` | 200 | 永远压过导入 |
-| **claude-code 项目级** | `<项目根>/.claude/skills` | **210** | 输给 dsh 原生项目级 |
-| **zcode 项目级** | `<项目根>/.zcode/skills` | **220** | 同上 |
-| dsh 原生 custom | `Config.customSkillDirs` | 300 | |
-| **extraDirs** | 任意目录 | **300**（可按目录覆盖） | 与官方 custom 同档 |
-| dsh 原生 user-dsh | `~/.dsh/skills` | 400 | |
-| **claude-code 用户级** | `~/.claude/skills` | **450** | 输给 dsh 原生用户级 |
-| **codex 用户级** | `~/.codex/skills` | **460** | |
-| **zcode 用户级** | `~/.zcode/skills` | **470** | |
-| dsh 原生 user-agents / bundled | `~/.agents/skills` / 内置 | 500 / 600 | |
+## 字段映射（外来 frontmatter → dsh）
 
-同名技能裁决由 dsh 官方注册表完成（rank → provider 注册序 → list 内顺序），本插件只负责给出确定的 rank。
-
-## 安装
-
-| 方式 | 命令 / 操作 |
+| 外来字段 | 映射 |
 |---|---|
-| CLI（npm 包） | `dsh plugin --profile <你的profile> add dsh-skill-compat-plus` |
-| 桌面端 | 插件页安装 `dsh-skill-compat-plus`，或：`ELECTRON_RUN_AS_NODE=1 "/d/DeepSeek Harness/DeepSeek Harness.exe" --expose-internals "D:/DeepSeek Harness/resources/app.asar/dsh/node_modules/@deepseek-ai/dsh-desktop-host/lib/cli.js" plugin --profile desktop add dsh-skill-compat-plus`（Git Bash，先完全退出应用含托盘） |
-| git 直装（始终最新 main） | `dsh plugin --profile <你的profile> add git+https://github.com/shuxidemosheng/dsh-skill-compat-plus.git` |
-| 本地 tgz | `npm pack` 后 `dsh plugin --profile <你的profile> add file:<你的打包路径>/dsh-skill-compat-plus-0.1.0.tgz` |
+| `name` | 缺省取目录名；不合 dsh kebab 规则 → slug 化（可关） |
+| `description` | 缺失（Claude 允许）→ 正文首段合成（可关） |
+| `when_to_use` / `whenToUse` | → `whenToUse` |
+| `disable-model-invocation` | → `invocation.modelInvocable: false` |
+| `user-invocable` | → `invocation.userInvocable` |
+| Codex `agents/openai.yaml` 的 `policy.allow_implicit_invocation: false` | → `invocation.modelInvocable: false` |
+| `allowed-tools` / `model` / `hooks` / `license` / `compatibility` 等 | 原样保留进 `metadata`（dsh 无对应物，不静默丢弃） |
+
+整个原始 frontmatter 全量保真进 `metadata`，可追溯。
+
+<details>
+<summary><strong>完整优先级表（rank，越小越优先）</strong></summary>
+
+| 来源 | 目录 | rank |
+|---|---|---|
+| dsh 原生 project-dsh | `<项目根>/.dsh/skills` | 100 |
+| dsh 原生 project-agents | `<项目根>/.agents/skills` | 200 |
+| **claude-code 项目级** | `<项目根>/.claude/skills` | **210** |
+| **zcode 项目级** | `<项目根>/.zcode/skills` | **220** |
+| dsh 原生 custom / **extraDirs** | 配置目录 | 300 |
+| dsh 原生 user-dsh | `~/.dsh/skills` | 400 |
+| **claude-code 用户级** | `~/.claude/skills` | **450** |
+| **codex 用户级** | `~/.codex/skills` | **460** |
+| **zcode 用户级** | `~/.zcode/skills` | **470** |
+| dsh 原生 user-agents / bundled | `~/.agents/skills` / 内置 | 500 / 600 |
+
+同名裁决由 dsh 官方注册表完成（rank → provider 注册序 → list 内顺序），本插件保证 rank 确定且原生恒优先。
+
+</details>
 
 ## 配置
 
-配置写在 `cordis.patch.yml` 的 entry `config` 下（profile 层可覆盖，整体替换语义）：
+写在 `cordis.patch.yml` 的 entry `config` 下（profile 层可覆盖，整体替换语义），未知键 fail-fast：
 
 | 键 | 默认 | 说明 |
 |---|---|---|
-| `providerName` | `skill-compat-plus` | provider 注册名（`runtime` 为保留字，不可用） |
-| `sources.claude` | `true` | `boolean` 或 `{ enabled?, project?, root?, rank? }` |
-| `sources.codex` | `true` | 同上 |
-| `sources.zcode` | `true` | 同上 |
-| `extraDirs` | `[]` | `{ path, label?, rank? }[]`，任意额外技能目录 |
-| `watch` | `true` | 文件变化热更新 |
-| `watchUsePolling` | `false` | 网络盘/特殊文件系统上开启轮询监视 |
-| `watchStabilityThresholdMs` | `200` | awaitWriteFinish 稳定阈值 |
-| `watchPollIntervalMs` | `100` | awaitWriteFinish 轮询间隔 |
+| `providerName` | `skill-compat-plus` | provider 注册名（`runtime` 为保留字） |
+| `sources.claude` / `.codex` / `.zcode` | `true` | `boolean` 或 `{ enabled?, project?, root?, rank? }` |
+| `extraDirs` | `[]` | `{ path, label?, rank? }[]` |
+| `watch` | `true` | 热更新开关 |
+| `watchUsePolling` | `false` | 网络盘/特殊文件系统开启 |
+| `watchStabilityThresholdMs` / `watchPollIntervalMs` | 200 / 100 | awaitWriteFinish 参数 |
 | `watchMaxProjects` | `128` | 项目根监视 LRU 上限 |
 | `slugifyNames` | `true` | 关闭后不合规名直接 skip |
 | `synthesizeDescription` | `true` | 关闭后缺 description 的技能直接 skip |
 
-未知配置键会直接报错（fail-fast，不做静默忽略）。
+> [!NOTE]
+> 导入技能会进入每个会话的 `<available_skills>` 目录提醒，挂太多会持续占用模型上下文——建议用 `sources.*.enabled` / `extraDirs` 按需精选。
+
+## 安装方式
+
+| 方式 | 命令 / 操作 |
+|---|---|
+| CLI（npm 包） | `dsh plugin --profile <你的profile> add dsh-skill-compat-plus@0.1.0` |
+| 桌面端 | 插件页搜索安装；或 `ELECTRON_RUN_AS_NODE=1 "/d/DeepSeek Harness/DeepSeek Harness.exe" --expose-internals "D:/DeepSeek Harness/resources/app.asar/dsh/node_modules/@deepseek-ai/dsh-desktop-host/lib/cli.js" plugin --profile desktop add dsh-skill-compat-plus`（Git Bash，先完全退出应用含托盘） |
+| git 直装（始终最新 main） | `dsh plugin --profile <你的profile> add git+https://github.com/shuxidemosheng/dsh-skill-compat-plus.git` |
+| 本地 tgz | `npm pack` 后 `dsh plugin --profile <你的profile> add file:<你的打包路径>/dsh-skill-compat-plus-0.1.0.tgz` |
+
+## 已知限制
+
+- Claude/ZCode **插件包内部**的技能（plugin cache、`.claude-plugin` 等）不在默认发现范围，可用 `extraDirs` 手动挂载；自动识别留待后续版本。
+- 项目级只扫最近 `.git` 祖先**一级**（对齐 dsh 官方）；ZCode 式 CWD→worktree 多级扫描不做。
+- Claude 的嵌套 `<subdir>/.claude/skills`、`--add-dir`、企业托管目录不支持。
+- `allowed-tools` / `model` / `hooks` 等执行语义字段仅保留在 `metadata`，dsh 侧无执行效果。
+
+## FAQ
+
+**Q: 会不会覆盖 dsh 原生技能？**
+不会。同名时原生恒优先（见优先级表），本插件发现的重名会输出 `duplicate skill name` 诊断。
+
+**Q: `~/.agents/skills` 里的技能怎么没被列出？**
+那本来就是 dsh 原生扫描目录（同时也是 Codex 新官方用户根），无需桥接。
+
+**Q: 技能文件改了没生效？**
+确认 `watch: true`；网络盘开 `watchUsePolling: true`。存在性轮询约 2.5s，内容事件走 chokidar（亚秒级）。
 
 ## 本地开发
 
 ```bash
-# Git Bash
 npm install
-npm test              # vitest，32 个用例（含 Windows 路径、真实时序 watch 测试、与上游文法的对拍）
+npm test              # vitest，32 个用例（含 Windows 路径、真实时序 watch、上游文法对拍）
 npm run build         # tsc d.ts + esbuild bundle（yaml/chokidar 为外部运行时依赖）
-node scripts/smoke.mjs   # 用构建产物直接扫描本机真实技能目录并打印清单
+node scripts/smoke.mjs   # 构建产物直接扫描本机真实技能目录并打印清单
 ```
 
 ## 安全
 
-- 本插件**只读**外部技能目录：唯一的写操作是 chokidar/fs.watchFile 的监视句柄。
-- 技能内容由 dsh 官方 `skill` 工具管线加载，本插件不执行任何技能内代码。
-- **产物最小化**：`yaml`/`chokidar` 作为运行时依赖（由 plugin-manager 安装进 profile），构建产物只含第一方代码——安全扫描面与攻击面都最小。
-- **Mimosa 深度扫描封印**（2026-10-11，v0.1.0，最终产物）：
-  - 发布前复核：scanId `scan-2026-10-11T10-22-46.363Z-046924c5dc3e`，seal `sha256:8b6abe1217fbf677d8f9577792cf63a89ba5c97b04f85c6ae67027340a0f93a7`，findings 0，依赖风险 0
-  - seal: `sha256:f35ddf0890c53725a25589f8515b20f3b13025d213f8901af52a28d2dc77ccf1`
-  - findings 0，依赖风险 0。
-  - 历史记录：最初的 472KB 自包含产物曾报 6 条静态 advisory（scanId `scan-2026-10-11T09-25-20.462Z-3a00d7a1835b`，全部位于当时打包进去的上游闭包——`yaml` scalar 解析器、`@deepseek-ai/schemastery`、`@deepseek-ai/dsh-skill` 注册表内部，属静态污点分析对官方包内部实现的误报模式）。据此改为外部依赖方案后复扫归零。
+- 只读挂载：唯一的系统写入是 watcher 句柄；技能内容由 dsh 官方 `skill` 管线加载，本插件不执行技能内代码。
+- 产物只含第一方代码（`yaml`/`chokidar` 为运行时依赖），扫描面与攻击面最小化。
+- Mimosa 深度扫描（2026-10-11，v0.1.0）：scanId `scan-2026-10-11T11-54-46.891Z-47166d49d84b`，seal `sha256:c5a95c8ed6f9b2079af39ecb487126b7814a52e362212f4104b3ae137a58cd57`，findings 0，依赖风险 0。历史：自包含产物曾报 6 条上游闭包静态误报（scanId `...3a00d7a1835b`），改外部依赖后归零。
 
-## 已知限制
+## 同类与致谢
 
-- Claude/ZCode **插件包内部**的技能（`~/.claude/plugins`、`~/.zcode/cli/plugins/cache` 等）不在默认发现范围，可用 `extraDirs` 手动挂载；自动识别（`.claude-plugin/plugin.json` 等）留待后续版本。
-- 项目级只扫描最近 `.git` 祖先**一级**（对齐 dsh 官方）；ZCode 式的 CWD→worktree 多级扫描不做。
-- Claude Code 的嵌套 `<subdir>/.claude/skills`、`--add-dir`、企业托管目录不支持。
-- `allowed-tools` / `model` / `hooks` 等执行语义字段在 dsh 没有对应物，仅保留在 `metadata` 供追溯。
-- 大量导入技能会增大模型端 catalog（每个会话一条 `<available_skills>` 提醒）；建议用 `sources.*.enabled` / `extraDirs` 精选。
-- dsh 处于 developer preview：peerDependencies 锁 `@deepseek-ai/dsh-skill >=0.2.0-rc.2`，上游 breaking change 需跟进。
-
-## FAQ
-
-**Q: 会不会和 dsh 原生技能冲突？**
-同名时 dsh 原生优先（见 rank 表），不会出现不可预测的覆盖；本插件发现的重名会在日志里给出 `duplicate skill name` 诊断。
-
-**Q: `~/.agents/skills` 里的技能为什么没被本插件列出？**
-那本来就是 dsh 原生扫描的目录（同时也是 Codex 新官方用户根），无需桥接。
-
-**Q: 技能文件改了但没生效？**
-确认 `watch: true`；网络盘请开 `watchUsePolling: true`。watch 的存在性轮询约 2.5s，内容事件走 chokidar（亚秒级）。
-
-## 上游致谢
-
-- [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) —— SkillProvider 接缝、`dsh-skill-filesystem` 参考实现、插件 bundle 机制
-- 格式参考：[Claude Code skills 文档](https://code.claude.com/docs/en/skills)、[Codex skills 文档](https://developers.openai.com/codex/skills)、[Agent Skills 开放规范](https://agentskills.io)
-- 同类项目：[YTyangtao666/dsh-skills-bridge](https://github.com/YTyangtao666/dsh-skills-bridge)（首发思路），本插件在目录覆盖面、YAML 解析、Windows 路径正确性、诊断聚合与测试覆盖上做了全面增强
+- [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) —— SkillProvider 接缝、`dsh-skill-filesystem` 参考实现、bundle 机制
+- 格式规范：[Claude Code skills](https://code.claude.com/docs/en/skills) · [Codex skills](https://developers.openai.com/codex/skills) · [Agent Skills 开放规范](https://agentskills.io)
+- 同类项目：[YTyangtao666/dsh-skills-bridge](https://github.com/YTyangtao666/dsh-skills-bridge)（首发思路）——本插件在其之上补齐了目录覆盖面（三家来源 + 项目级）、标准 YAML 解析、slug 化与 description 合成、Windows 路径正确性、诊断聚合与 32 个单测
 
 ## 许可证
 
