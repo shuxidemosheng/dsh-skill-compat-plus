@@ -109,7 +109,7 @@ node scripts/smoke.mjs   # 用构建产物直接扫描本机真实技能目录�
 - 技能内容由 dsh 官方 `skill` 工具管线加载，本插件不执行任何技能内代码。
 - **产物最小化**：`yaml`/`chokidar` 作为运行时依赖（由 plugin-manager 安装进 profile），构建产物只含第一方代码——安全扫描面与攻击面都最小。
 - **Mimosa 深度扫描封印**（2026-10-11，v0.1.0，最终产物）：
-  - scanId: `scan-2026-10-11T09-28-14.208Z-0cb18611f77e`
+  - 发布前复核：scanId `scan-2026-10-11T10-22-46.363Z-046924c5dc3e`，seal `sha256:8b6abe1217fbf677d8f9577792cf63a89ba5c97b04f85c6ae67027340a0f93a7`，findings 0，依赖风险 0
   - seal: `sha256:f35ddf0890c53725a25589f8515b20f3b13025d213f8901af52a28d2dc77ccf1`
   - findings 0，依赖风险 0。
   - 历史记录：最初的 472KB 自包含产物曾报 6 条静态 advisory（scanId `scan-2026-10-11T09-25-20.462Z-3a00d7a1835b`，全部位于当时打包进去的上游闭包——`yaml` scalar 解析器、`@deepseek-ai/schemastery`、`@deepseek-ai/dsh-skill` 注册表内部，属静态污点分析对官方包内部实现的误报模式）。据此改为外部依赖方案后复扫归零。
